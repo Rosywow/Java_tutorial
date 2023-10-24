@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN"
+        "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="com.mz.auth.mapper.QuestionMapper">
+
+    <sql id="whereSql">
+        <where>
+            <if test="questionTitle!=null and questionTitle !=''">
+                and e.questionTitle like concat('%',#{questionTitle},'%')
+            </if>
+        </where>
+    </sql>
+    <!--   1. 查询试卷总的条数-->
+    <select id="queryTotal" parameterType="questionQuery" resultType="java.lang.Long">
+        select count(*) from exam_questionbank e
+        <include refid="whereSql"/>
+    </select>
+    <!--  2.  分页的数据  -->
+    <!--通过下面的sql语句查询到的数据返回值类型为map，resultMap="questionMap" 实体表里面有user对象(id，username),所以用Question的Map-->
+    <select id="queryData" parameterType="questionQuery" resultMap="questionMap">
+        select e.*,u.id uid,u.username uname
+        from exam_questionbank e
+        join t_user u  on  e.creatorId=u.id
+        <include refid="whereSql"/>
+        order by createTime desc
+        limit #{offset},#{page}
+    </select>
+    <!--3.上面分页数据中 resultMap="questionMap" 所以id="questionMap"值对应一样，即 进行 映射-->
+    <resultMap id="questionMap" type="Question">
+        <id column="id" property="id"></id>
+        <result column="uid" property="user.id"></result>
+        <result column="uname" property="user.username"></result>
+    </resultMap>
+
+</mapper>

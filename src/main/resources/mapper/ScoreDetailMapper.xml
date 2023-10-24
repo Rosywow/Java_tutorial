@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN"
+        "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="com.mz.auth.mapper.ScoreDetailMapper">
+
+    <sql id="whereSql"><!--高级查询条件-->
+        <where>
+            <if test="questionId!=null and questionId !=''">
+                and ex.questionId =#{questionId}
+            </if>
+            <if test="paperId!=null and paperId !=''">
+                and ex.paperId = #{paperId}
+            </if>
+
+        </where>
+    </sql>
+    <!--    总条数-->
+    <select id="queryTotal" parameterType="scoreDetailQuery" resultType="java.lang.Long">
+        select count(*)
+        from exam_scoredetail ex
+        join t_student s on ex.stuId=s.id
+        join exam_paper p on ex.paperId=p.id
+        <include refid="whereSql"/>
+    </select>
+    <!--    分页的数据-->
+    <select id="queryData" parameterType="scoreDetailQuery" resultMap="ScoreDetailMap">
+        select ex.*,s.id sid,s.username username,p.id pid,p.name pname
+        from exam_scoredetail ex
+        join t_student s on ex.stuId=s.id
+        join exam_paper p on ex.paperId=p.id
+        <include refid="whereSql"/>
+        order by id desc <!--按照id降序排列-->
+        limit #{offset},#{page}
+    </select>
+    <!--做一个结果映射 因为要用到ScoreDetai实体类里面的对象 学生和试卷，-->
+    <resultMap id="ScoreDetailMap" type="ScoreDetail">
+        <id column="id" property="id"></id>
+        <result property="student.id" column="sid"></result>
+        <result property="student.username" column="username"></result>
+        <result property="paper.id" column="pid"></result>
+        <result property="paper.name" column="pname"></result>
+    </resultMap>
+
+
+    <!--    查询学生全科目成绩-->
+    <select id="queryFrontAllStuScore"  resultType="com.mz.auth.vo.StuScoreVO">
+        SELECT
+            s.id stuId,
+            s.nickName,
+            ep.id paperId,
+            ep. NAME,
+            sum(es.correntScore) totalScore
+        FROM
+            exam_scoredetail es
+                JOIN exam_paper ep ON es.paperId = ep.id
+                JOIN t_student s ON s.id = es.stuId
+        WHERE s.id = #{stuId}
+        group by es.paperId
+    </select>
+
+
+    <!--传过来的参数类型是ScoreDetail实体类，因为用该实体类封装了前台传过来的两个参数paperid.stuid.
+  resultMap="paperDetailMap"在这里这个名字可以随意，在做结果映射时必须写为StuPaperQuestion 即type="StuPaperQuestion"-->
+    <select id="queryPaperDetail" parameterType="ScoreDetail" resultMap="paperDetailMap">
+        SELECT
+            p.id, p. NAME,
+            es.questionId,es.questionTitle,es.questionAnswer stuAnswer,es.questionScore grade,es.q_typeid,
+            es.correntAnswer,es.correntScore,
+            op.id opid,op.optionA,op.optionB,op.optionC,op.optionD,op.questionId opQuestionid
+        FROM
+            exam_paper p
+                JOIN exam_scoredetail es ON p.id = es.paperId
+                LEFT JOIN exam_xzt_options op ON op.questionId = es.questionId
+        WHERE
+            p.id = #{paperId}
+          AND es.stuId = #{stuId}
+        ORDER BY
+            es.q_typeid
+    </select>
+    <!--做一个结果映射，即返回值类型   private List<StuQuestionQueryVO> stuQuestionsList = new ArrayList();
+    collection标签来封装集合（集合为一对多的关系 ）要嵌套，javaType为<StuQuestionQueryVO>-->
+    <resultMap id="paperDetailMap" type="com.mz.auth.vo.StuPaperQuestionVo">
+        <id column="id" property="id"></id>
+        <result column="name" property="name"></result>
+        <collection property="stuQuestionsList" javaType="com.mz.auth.vo.StuQuestionQueryVO">
+            <id column="questionId" property="questionId"></id>
+            <result column="questionTitle" property="questionTitle"></result>
+            <result column="stuAnswer" property="stuAnswer"></result>
+            <result column="grade" property="grade"></result>
+            <result column="q_typeid" property="q_typeid"></result>
+            <result column="correntAnswer" property="correntAnswer"></result>
+            <result column="correntScore" property="correntScore"></result>
+            <!--association一对一关系中association  ，StuQuestionQueryVO里面有对象questionXztOptions，要嵌套第二层-->
+            <association property="questionXztOptions" javaType="QuestionXztOptions">
+                <id column="opid" property="id"></id>
+                <result column="optionA" property="optionA"></result>
+                <result column="optionB" property="optionB"></result>
+                <result column="optionC" property="optionC"></result>
+                <result column="optionD" property="optionD"></result>
+                <result column="opQuestionid" property="questionId"></result>
+            </association>
+        </collection>
+    </resultMap>
+
+
+</mapper>

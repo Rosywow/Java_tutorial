@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN"
+        "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+<mapper namespace="com.mz.auth.mapper.PaperMapper">
+
+    <sql id="whereSql">
+        <where>
+            <if test="id!=null and id !=''">
+                and p.id = #{id}
+            </if>
+            <if test="name!=null and name !=''">
+                and p.name like concat('%',#{name},'%')
+            </if>
+          
+        </where>
+    </sql>
+<!--    查询试卷总的条数 id="queryTotal"  queryTotal方法  传过来的参数paperQuery-->
+    <select id="queryTotal" parameterType="paperQuery" resultType="java.lang.Long">
+        select count(*)
+        from exam_paper p
+        left join t_dictype_data d on p.levelid = d.id
+        <include refid="whereSql"/>
+    </select>
+    <!--    分页的数据-->
+    <select id="queryData" parameterType="paperQuery" resultType="Paper">
+        select p.*,d.name levelname
+        from exam_paper p
+        left join t_dictype_data d on p.levelid = d.id
+        <include refid="whereSql"/>
+        order by createTime desc<!-- 创建时间按照降序 order by createTime，默认是升序-->
+        limit #{offset},#{page}
+    </select>
+
+
+    <resultMap id="previewPaperMap" type="com.mz.auth.vo.PaperGengerateVO">
+        <!--要封装的参数-->
+        <id column="id" property="id"></id>
+        <result column="name" property="name"></result>
+        <result column="startTime" property="startTime"></result>
+        <result column="endTime" property="endTime"></result>
+        <!--PaperGengerateVO试卷实体表对象里面的questions问题是一个list集合类型的对象，
+		用collection标签,questions对象里面又有很多相关属性，要进行映射-->
+        <collection property="questions"  javaType="Question">
+            <id column="eid" property="id"></id>
+            <result column="questionTitle" property="questionTitle"></result>
+            <result column="questionAnswer" property="questionAnswer"></result>
+            <result column="grade" property="grade"></result>
+            <result column="q_typeid" property="q_typeid"></result>
+            <!--questions实体表对象里面又有questionXztOptions选择题实体表对象-->
+            <association property="questionXztOptions" javaType="QuestionXztOptions">
+                <id column="exid" property="id"></id>
+                <result column="optionA" property="optionA"></result>
+                <result column="optionB" property="optionB"></result>
+                <result column="optionC" property="optionC"></result>
+                <result column="optionD" property="optionD"></result>
+                <result column="exquestionId" property="questionId"></result>
+            </association>
+        </collection>
+    </resultMap>
+
+    <!--    预览试卷-->
+    <select id="previewPaper" parameterType="java.lang.Long" resultMap="previewPaperMap">
+        select p.id ,p.name ,p.startTime,p.endTime,
+               eq.id eid,eq.questionTitle,eq.questionAnswer,eq.grade,eq.q_typeid,
+               ex.id exid,ex.optionA,ex.optionB,ex.optionC,ex.optionD,ex.questionId exquestionId
+        from exam_paper p
+                 join exam_paper_question ep on p.id = ep.paperId
+                 join exam_questionbank eq on eq.id = ep.questionId
+                 left join exam_xzt_options ex on eq.id = ex.questionId
+        where p.id = #{paperId}
+        order by q_typeid
+    </select>
+
+
+</mapper>
